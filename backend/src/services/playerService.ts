@@ -69,3 +69,8 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
 
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
+
+export function getLeaderboard(): Player[] {
+  return Array.from(players.values())
+    .sort((a, b) => b.score - a.score);
+}

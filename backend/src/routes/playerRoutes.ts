@@ -3,7 +3,8 @@ import {
   registerPlayer,
   getPlayer,
   updatePlayerLocation,
-  getPlayerInventory
+  getPlayerInventory,
+  getLeaderboard
 } from "../services/playerService";
 
 import { getPlayerCollections } from "../services/collectionService";
@@ -19,6 +20,14 @@ router.post("/register", (req: Request, res: Response) => {
   }
   const player = registerPlayer(name.trim());
   res.status(201).json(player);
+});
+
+// GET /api/players/leaderboard
+router.get("/leaderboard", (req: Request, res: Response) => {
+
+  const leaderboard = getLeaderboard();
+
+  res.json(leaderboard);
 });
 
 // GET /api/players/:id
