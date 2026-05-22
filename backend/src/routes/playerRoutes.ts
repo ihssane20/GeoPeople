@@ -6,6 +6,8 @@ import {
   getPlayerInventory
 } from "../services/playerService";
 
+import { getPlayerCollections } from "../services/collectionService";
+
 const router = Router();
 
 // POST /api/players/register
@@ -63,6 +65,18 @@ router.get("/:id/score", (req: Request, res: Response) => {
     return;
   }
   res.json({playerId: player.id,name: player.name, score: player.score });
+});
+
+// GET /api/players/:id/collections
+router.get("/:id/collections", (req: Request, res: Response) => {
+  const player = getPlayer(req.params.id as string);
+  if (!player) {
+    res.status(404).json({ error: "Joueur introuvable" });
+    return;
+  }
+  const collections = getPlayerCollections(req.params.id as string);
+
+  res.json({ playerId: player.id, collections });
 });
 
 export default router;
