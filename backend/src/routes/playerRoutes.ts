@@ -38,12 +38,18 @@ router.put("/:id/location", (req: Request, res: Response) => {
     res.status(400).json({ error: "latitude et longitude requis (numbers)" });
     return;
   }
-  const player = updatePlayerLocation(req.params.id as string, latitude, longitude);
-  if (!player) {
-    res.status(404).json({ error: "Joueur introuvable" });
-    return;
+  try {
+    const player = updatePlayerLocation(req.params.id as string, latitude, longitude);
+    if (!player) {
+      res.status(404).json({ error: "Joueur introuvable" });
+      return;
+    }
+    res.json(player);
+  } catch (error) {
+    res.status(400).json({
+      error: error instanceof Error ? error.message : "Erreur"
+    });
   }
-  res.json(player);
 });
 
 // GET /api/players/:id/inventory
