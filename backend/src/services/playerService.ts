@@ -31,12 +31,14 @@ export function updatePlayerLocation(id: string, lat: number, lon: number): Play
   return player;
 }
 
-export function addCardToInventory(playerId: string, cardId: string): Player | undefined {
+export function addCardToInventory(playerId: string, cardId: string ): Player | undefined {
   const player = players.get(playerId);
   if (!player) return undefined;
   if (!player.inventory.includes(cardId)) {
+    const card = getCardById(cardId);
+    if (!card) return undefined;
     player.inventory.push(cardId);
-    player.score += 10;
+    player.score += card.power;
   }
   return player;
 }

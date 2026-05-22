@@ -55,4 +55,14 @@ router.get("/:id/inventory", (req: Request, res: Response) => {
   res.json({ playerId: req.params.id, inventory });
 });
 
+// GET /api/players/:id/score
+router.get("/:id/score", (req: Request, res: Response) => {
+  const player = getPlayer(req.params.id as string);
+  if (!player) {
+    res.status(404).json({ error: "Joueur introuvable" });
+    return;
+  }
+  res.json({playerId: player.id,name: player.name, score: player.score });
+});
+
 export default router;
