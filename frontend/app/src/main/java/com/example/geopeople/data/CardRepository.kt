@@ -15,6 +15,10 @@ class CardRepository {
         _cards.value = places
     }
 
+    fun setCards(cards: List<GeoCard>) {
+        _cards.value = cards
+    }
+
     fun getCardsInRange(playerLat: Double, playerLon: Double, rangeMeters: Double): List<GeoCard> {
         return _cards.value.filter {
             DistanceUtils.haversine(playerLat, playerLon, it.latitude, it.longitude) <= rangeMeters

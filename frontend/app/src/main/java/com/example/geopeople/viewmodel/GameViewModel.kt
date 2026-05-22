@@ -1,9 +1,11 @@
 package com.example.geopeople.viewmodel
 
 import android.app.Application
+import android.content.Context
 import android.location.Location
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.geopeople.data.ApiService
 import com.example.geopeople.data.CardRepository
 import com.example.geopeople.data.CaptureManager
 import com.example.geopeople.location.DistanceUtils
@@ -27,20 +29,75 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val _captureSuccess = MutableStateFlow(false)
     val captureSuccess: StateFlow<Boolean> = _captureSuccess.asStateFlow()
 
+    private val _playerScore = MutableStateFlow(0)
+    val playerScore: StateFlow<Int> = _playerScore.asStateFlow()
+
+    private val _isConnected = MutableStateFlow(false)
+    val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
+
+    private var playerId: String? = null
     private var lastFetchLat: Double? = null
     private var lastFetchLon: Double? = null
+    private var lastSyncLat: Double? = null
+    private var lastSyncLon: Double? = null
+
+    private val prefs = application.getSharedPreferences("geopeople", Context.MODE_PRIVATE)
 
     init {
+        // Restore player ID from prefs
+        playerId = prefs.getString("playerId", null)
+
+        // Register or restore player session
+        viewModelScope.launch {
+            if (playerId == null) {
+                val player = ApiService.registerPlayer("Joueur_${System.currentTimeMillis() % 10000}")
+                if (player != null) {
+                    playerId = player.id
+                    prefs.edit().putString("playerId", player.id).apply()
+                    _isConnected.value = true
+                    _playerScore.value = player.score
+                }
+            } else {
+                val player = ApiService.getPlayer(playerId!!)
+                if (player != null) {
+                    _isConnected.value = true
+                    _playerScore.value = player.score
+                }
+            }
+        }
+
+        // GPS tracking + card loading + location sync
         viewModelScope.launch {
             playerLocation.filterNotNull().collect { loc ->
                 val fLat = lastFetchLat
                 val fLon = lastFetchLon
+
+                // Load cards from backend when moved > 5km
                 if (fLat == null || fLon == null ||
                     DistanceUtils.haversine(loc.latitude, loc.longitude, fLat, fLon) > 5000
                 ) {
                     lastFetchLat = loc.latitude
                     lastFetchLon = loc.longitude
-                    cardRepository.loadCardsAround(loc.latitude, loc.longitude)
+                    // Try backend first, fallback to Wikidata
+                    val backendCards = ApiService.getNearbyCards(loc.latitude, loc.longitude)
+                    if (backendCards.isNotEmpty()) {
+                        cardRepository.setCards(backendCards)
+                    } else {
+                        cardRepository.loadCardsAround(loc.latitude, loc.longitude)
+                    }
+                }
+
+                // Sync location to backend every 100m
+                val sLat = lastSyncLat
+                val sLon = lastSyncLon
+                if (sLat == null || sLon == null ||
+                    DistanceUtils.haversine(loc.latitude, loc.longitude, sLat, sLon) > 100
+                ) {
+                    lastSyncLat = loc.latitude
+                    lastSyncLon = loc.longitude
+                    playerId?.let { id ->
+                        ApiService.updatePlayerLocation(id, loc.latitude, loc.longitude)
+                    }
                 }
             }
         }
@@ -59,6 +116,19 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             captureManager.capture(card)
             _captureSuccess.value = true
             _selectedCard.value = null
+
+            // Sync capture to backend
+            viewModelScope.launch {
+                playerId?.let { id ->
+                    val result = ApiService.captureCard(id, card.id, loc.latitude, loc.longitude)
+                    if (result.success) {
+                        val player = ApiService.getPlayer(id)
+                        if (player != null) {
+                            _playerScore.value = player.score
+                        }
+                    }
+                }
+            }
         }
     }
 
